@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hopwatch</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --seq-100:#cde2fb; --seq-250:#86b6ef; --seq-450:#2a78d6;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19;
+    --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --seq-100:#203042; --seq-250:#184f95; --seq-450:#3987e5;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19;
+  --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --seq-100:#203042; --seq-250:#184f95; --seq-450:#3987e5;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--page); color:var(--ink);
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:24px 16px 56px}
+header{display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:4px}
+h1{font-size:19px; font-weight:650; margin:0; letter-spacing:-.01em}
+.sub{color:var(--ink-2); font-size:13px; margin:2px 0 20px}
+.spacer{flex:1}
+button{
+  font:inherit; color:var(--ink); background:var(--surface);
+  border:1px solid var(--ring); border-radius:8px; padding:6px 11px; cursor:pointer;
+}
+button:hover{background:var(--page)}
+.filters button[aria-pressed="true"]{background:var(--s1); border-color:var(--s1); color:#fff}
+.pill{display:inline-flex; align-items:center; gap:7px; font-weight:600; font-size:13px;
+  padding:5px 12px; border-radius:999px; border:1px solid var(--ring); background:var(--surface)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.filters{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 18px}
+.filters .lbl{color:var(--ink-2); font-size:12.5px; margin-right:2px}
+
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:12px; margin-bottom:12px}
+.card{background:var(--surface); border:1px solid var(--ring); border-radius:var(--radius); padding:14px 16px}
+.tile .label{color:var(--ink-2); font-size:12.5px; margin-bottom:5px}
+.tile .val{font-size:25px; font-weight:650; letter-spacing:-.015em; line-height:1.15}
+.tile .val.hero{font-size:52px; font-weight:680; letter-spacing:-.03em}
+.tile .meta{color:var(--muted); font-size:12px; margin-top:3px}
+.tile.heroCard{grid-column:span 2}
+@media (max-width:560px){ .tile.heroCard{grid-column:span 1} }
+
+.netGrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(214px,1fr)); gap:12px; margin-bottom:14px}
+.netCard{background:var(--surface); border:1px solid var(--ring); border-radius:var(--radius);
+  padding:13px 15px; cursor:pointer; text-align:left; font:inherit; color:var(--ink); width:100%}
+.netCard:hover{border-color:var(--axis)}
+.netCard[aria-pressed="true"]{border-color:var(--s1); box-shadow:inset 0 0 0 1px var(--s1)}
+.netCard[aria-pressed="true"] .netName{color:var(--s1)}
+.netTop{display:flex; align-items:center; gap:7px; margin-bottom:7px}
+.netName{font-weight:620; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.badge{font-size:11px; font-weight:600; padding:2px 7px; border-radius:999px;
+  border:1px solid var(--ring); color:var(--ink-2); white-space:nowrap}
+.badge.live{border-color:var(--good); color:var(--good)}
+.badge.vpn{border-color:var(--s1); color:var(--s1)}
+.netStats{display:flex; flex-wrap:wrap; gap:4px 14px; color:var(--ink-2); font-size:12.5px}
+.netStats b{color:var(--ink); font-weight:620; font-variant-numeric:tabular-nums}
+.netFoot{margin-top:8px; display:flex; align-items:center; gap:10px}
+.linkBtn{font-size:12px; padding:4px 9px; border-radius:7px; border:1px solid var(--ring);
+  background:var(--page); color:var(--ink-2); text-decoration:none; display:inline-block}
+.linkBtn:hover{color:var(--ink); border-color:var(--axis)}
+.ctxBar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 16px}
+.ctxName{font-size:16px; font-weight:650; letter-spacing:-.01em}
+.sectionHead{display:flex; align-items:baseline; gap:10px; margin:0 0 10px}
+.sectionHead h2{font-size:14.5px; font-weight:620; margin:0}
+.sectionHead .note{color:var(--muted); font-size:12px}
+.meterTrack{height:9px; border-radius:999px; background:var(--seq-100); overflow:hidden; margin:9px 0 6px}
+.meterFill{height:100%; border-radius:999px; background:var(--seq-450); width:0; min-width:3px}
+
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; align-items:start}
+@media (max-width:860px){ .grid2{grid-template-columns:1fr} }
+.chartHead{display:flex; align-items:baseline; gap:10px; margin-bottom:2px}
+.chartHead h2{font-size:14.5px; font-weight:620; margin:0}
+.chartHead .note{color:var(--muted); font-size:12px}
+.legend{display:flex; flex-wrap:wrap; gap:12px; margin:8px 0 2px}
+.legend span{display:inline-flex; align-items:center; gap:6px; color:var(--ink-2); font-size:12.5px}
+.key{width:14px; height:2px; border-radius:1px; flex:none}
+.plot{position:relative}
+.plot svg{display:block; width:100%; height:auto; touch-action:pan-y}
+.tt{
+  position:absolute; pointer-events:none; opacity:0; transition:opacity .08s;
+  background:var(--surface); border:1px solid var(--ring); border-radius:8px;
+  padding:8px 10px; font-size:12.5px; box-shadow:0 4px 14px rgba(0,0,0,.10);
+  min-width:132px; z-index:5;
+}
+.tt .tthead{color:var(--ink-2); font-size:11.5px; margin-bottom:5px}
+.tt .ttrow{display:flex; align-items:center; gap:7px; margin-top:3px}
+.tt .ttrow b{font-variant-numeric:tabular-nums; font-weight:620; margin-left:auto}
+.tt .ttname{color:var(--ink-2)}
+details{margin-top:10px}
+summary{cursor:pointer; color:var(--ink-2); font-size:12.5px}
+table{width:100%; border-collapse:collapse; margin-top:9px; font-size:12.5px}
+th,td{text-align:right; padding:5px 7px; border-bottom:1px solid var(--grid); font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left; font-variant-numeric:normal}
+th{color:var(--ink-2); font-weight:600}
+.bars{margin-top:4px}
+.barRow{display:grid; grid-template-columns:minmax(96px,150px) 1fr auto; gap:10px; align-items:center; padding:4px 0}
+.barName{color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.barTrack{height:16px; position:relative}
+.barFill{height:16px; background:var(--seq-450); border-radius:0 4px 4px 0; min-width:2px}
+.barVal{font-variant-numeric:tabular-nums; color:var(--ink-2); font-size:12.5px}
+.scrollBox{max-height:306px; overflow-y:auto; overscroll-behavior:contain}
+.scrollBox table{margin-top:0}
+.scrollBox thead th, .scrollBox tr:first-child th{
+  position:sticky; top:0; background:var(--surface); z-index:1}
+.scrollBox::-webkit-scrollbar{width:9px}
+.scrollBox::-webkit-scrollbar-thumb{background:var(--axis); border-radius:9px}
+.scrollBox::-webkit-scrollbar-track{background:transparent}
+.hint{text-decoration:underline; text-decoration-style:dotted;
+  text-decoration-color:var(--axis); text-underline-offset:3px; cursor:help}
+.empty{color:var(--muted); padding:16px 0; font-size:13px}
+.err{color:var(--crit); font-size:13px}
+.statusIcon{font-size:13px; line-height:1}
+footer{color:var(--muted); font-size:12px; margin-top:26px}
+code{background:var(--surface); border:1px solid var(--ring); border-radius:5px; padding:1px 5px; font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>hopwatch</h1>
+  <span id="statusPill" class="pill"><span class="statusIcon">·</span><span>Loading</span></span>
+  <span class="spacer"></span>
+  <a id="routerBtn" class="linkBtn" href="#" target="_blank" rel="noopener"
+     style="display:none">Open router</a>
+  <button id="themeBtn" type="button">Theme</button>
+  <button id="reportBtn" type="button">Copy ISP report</button>
+</header>
+<p class="sub" id="subline">Starting up…</p>
+
+<div id="home">
+<div class="sectionHead"><h2>Connections</h2>
+  <span class="note" id="netNote">networks this Mac has been on</span></div>
+<div class="netGrid" id="networks"></div>
+
+</div>
+
+<div id="detail" hidden>
+<div class="ctxBar">
+  <button id="backBtn" type="button">&larr; All connections</button>
+  <span class="ctxName" id="ctxName"></span>
+  <span id="ctxBadges"></span>
+</div>
+
+<div class="filters" role="group" aria-label="Time range">
+  <span class="lbl">Range</span>
+  <button type="button" data-h="1"  aria-pressed="false">1h</button>
+  <button type="button" data-h="6"  aria-pressed="true">6h</button>
+  <button type="button" data-h="24" aria-pressed="false">24h</button>
+  <button type="button" data-h="168" aria-pressed="false">7d</button>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="card" style="margin-top:12px">
+  <div class="chartHead"><h2>Data usage this cycle</h2><span class="note" id="usageNote"></span></div>
+  <div class="meterTrack"><div class="meterFill" id="usageFill"></div></div>
+  <div class="tile"><div class="meta" id="usageMeta"></div></div>
+</div>
+
+<div class="grid2">
+  <div class="card" id="c_loss"></div>
+  <div class="card" id="c_rtt"></div>
+  <div class="card" id="c_speed"></div>
+  <div class="card" id="c_traffic"></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="chartHead"><h2>Degradation episodes</h2>
+      <span class="note">international loss while home network clean</span></div>
+    <div id="incidents"></div>
+  </div>
+  <div class="card">
+    <div class="chartHead"><h2>Devices on this Wi-Fi</h2>
+      <span class="note" id="devNote">who is connected</span></div>
+    <div id="devices"></div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="chartHead"><h2>App activity</h2>
+      <span class="note">this Mac, by data moved</span></div>
+    <div id="apps" class="bars"></div>
+  </div>
+  <div class="card">
+    <div class="chartHead"><h2>Where it connected</h2>
+      <span class="note" id="destNote">app to destination</span></div>
+    <div id="dests"></div>
+  </div>
+</div>
+</div>
+
+<footer>
+  Sampling locally on <code id="ifaceName">en0</code>. Loss measured per hop, so a fault
+  inside your home network is distinguishable from one upstream of it.
+  Usage is read from interface byte counters and includes local traffic.
+</footer>
+</div>
+
+<script>
+'use strict';
+const S = { hours: 6, view: 'home', net: null, status: null, samples: [],
+            incidents: [], networks: [],
+            apps: [], dests: [], devices: [] };
+
+const SERIES_COLORS = ['--s1','--s2','--s3','--s4'];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function el(tag, attrs, text){
+  const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const k in (attrs||{})) n.setAttribute(k, attrs[k]);
+  if (text != null) n.textContent = text;
+  return n;
+}
+function h(tag, cls, text){
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+const fmtBytes = b => {
+  if (b == null) return '—';
+  if (b >= 1e9) return (b/1e9).toFixed(2) + ' GB';
+  if (b >= 1e6) return (b/1e6).toFixed(1) + ' MB';
+  if (b >= 1e3) return (b/1e3).toFixed(0) + ' KB';
+  return b + ' B';
+};
+const fmtTime = ts => {
+  const d = new Date(ts*1000);
+  const p = x => String(x).padStart(2,'0');
+  return S.hours > 24 ? `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`
+                      : `${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const niceStep = (max, divs) => {
+  const target = Math.max(max, 1e-9);
+  const mag = Math.pow(10, Math.floor(Math.log10(target/divs)));
+  for (const m of [1,1.5,2,2.5,3,4,5,6,7.5,10,15,20]){
+    const s = m*mag;
+    if (s*divs >= target) return s;
+  }
+  return 10*mag;
+};
+const stepDecimals = st => st >= 10 ? 0 : st >= 1 ? 0 : st >= 0.1 ? 1 : 2;
+
+/* ---------------------------------------------------------- line chart ---- */
+function lineChart(host, cfg){
+  host.innerHTML = '';
+  const head = h('div','chartHead');
+  head.appendChild(h('h2', null, cfg.title));
+  if (cfg.note) head.appendChild(h('span','note', cfg.note));
+  host.appendChild(head);
+
+  const series = cfg.series.filter(s => s.points.some(p => p[1] != null));
+  if (!series.length){ host.appendChild(h('div','empty','No data in this range yet.')); return; }
+
+  if (series.length >= 2){
+    const lg = h('div','legend');
+    series.forEach(s => {
+      const w = h('span'); const k = h('span','key');
+      k.style.background = css(s.color); w.appendChild(k);
+      w.appendChild(document.createTextNode(s.label));
+      lg.appendChild(w);
+    });
+    host.appendChild(lg);
+  }
+
+  const plot = h('div','plot');
+  const tip = h('div','tt'); plot.appendChild(tip);
+  host.appendChild(plot);
+
+  const draw = () => {
+    const W = Math.max(280, plot.clientWidth || host.clientWidth - 32);
+    const PL = 46, PR = 58, PT = 10, PB = 26, PH = 168;
+    const H = PT + PH + PB;
+    const svg = el('svg', {viewBox:`0 0 ${W} ${H}`, width:W, height:H,
+                           role:'img', 'aria-label': cfg.title});
+
+    const all = series.flatMap(s => s.points.map(p => p[1])).filter(v => v != null);
+    const tsAll = series.flatMap(s => s.points.map(p => p[0]));
+    const t0 = Math.min(...tsAll), t1 = Math.max(...tsAll);
+    const step = niceStep(Math.max(...all) * 1.08, 4);
+    const yMax = cfg.yMax != null ? cfg.yMax : step * 4;
+    const dec = stepDecimals(step);
+    const axisFmt = v => v.toFixed(dec) + (cfg.unit || '');
+    const X = t => PL + (t1 === t0 ? 0 : (t - t0)/(t1 - t0) * (W - PL - PR));
+    const Y = v => PT + PH - (Math.min(v, yMax)/yMax) * PH;
+
+    for (let i = 0; i <= 4; i++){
+      const v = yMax * i/4, y = Y(v);
+      svg.appendChild(el('line',{x1:PL,y1:y,x2:W-PR,y2:y,
+        stroke: i===0 ? css('--axis') : css('--grid'), 'stroke-width':1}));
+      svg.appendChild(el('text',{x:PL-8,y:y+3.5,'text-anchor':'end',
+        fill:css('--muted'),'font-size':10.5,
+        style:'font-variant-numeric:tabular-nums'}, axisFmt(v)));
+    }
+    [t0, (t0+t1)/2, t1].forEach((t,i) => {
+      svg.appendChild(el('text',{x:X(t), y:H-8,
+        'text-anchor': i===0?'start':(i===2?'end':'middle'),
+        fill:css('--muted'),'font-size':10.5}, fmtTime(t)));
+    });
+
+    series.forEach(s => {
+      const col = css(s.color);
+      const pts = s.points.filter(p => p[1] != null);
+      if (!pts.length) return;
+      let d = '', pen = false;
+      s.points.forEach(p => {
+        if (p[1] == null){ pen = false; return; }
+        d += (pen ? ' L ' : ' M ') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1);
+        pen = true;
+      });
+      svg.appendChild(el('path',{d:d.trim(), fill:'none', stroke:col,
+        'stroke-width':2, 'stroke-linejoin':'round','stroke-linecap':'round'}));
+      const last = pts[pts.length-1];
+      svg.appendChild(el('circle',{cx:X(last[0]),cy:Y(last[1]),r:4.5,
+        fill:col, stroke:css('--surface'),'stroke-width':2}));
+      if (cfg.endLabels !== false){
+        svg.appendChild(el('text',{x:Math.min(X(last[0])+9, W-4), y:Y(last[1])+3.5,
+          'text-anchor':'start', fill:css('--ink-2'),'font-size':10.5,
+          style:'font-variant-numeric:tabular-nums'},
+          last[1].toFixed(dec) + (cfg.endUnit != null ? cfg.endUnit : (cfg.unit || ''))));
+      }
+    });
+
+    const hair = el('line',{x1:0,y1:PT,x2:0,y2:PT+PH,stroke:css('--axis'),
+      'stroke-width':1, opacity:0});
+    svg.appendChild(hair);
+    const grab = el('rect',{x:PL,y:PT,width:Math.max(1,W-PL-PR),height:PH,
+      fill:'transparent', style:'cursor:crosshair'});
+    svg.appendChild(grab);
+
+    const base = series[0].points.map(p => p[0]);
+    const move = ev => {
+      const r = svg.getBoundingClientRect();
+      const cx = (ev.clientX - r.left) * (W / r.width);
+      let bi = 0, bd = Infinity;
+      base.forEach((t,i) => { const d2 = Math.abs(X(t)-cx); if (d2 < bd){ bd = d2; bi = i; } });
+      const t = base[bi];
+      hair.setAttribute('x1', X(t)); hair.setAttribute('x2', X(t));
+      hair.setAttribute('opacity', 1);
+      tip.innerHTML = '';
+      tip.appendChild(h('div','tthead', fmtTime(t)));
+      series.forEach(s => {
+        const pt = s.points[bi];
+        const row = h('div','ttrow');
+        const k = h('span','key'); k.style.background = css(s.color); k.style.width='12px';
+        row.appendChild(k);
+        row.appendChild(h('span','ttname', s.label));
+        row.appendChild(h('b', null, pt && pt[1]!=null ? cfg.yTick(pt[1]) : '—'));
+        tip.appendChild(row);
+      });
+      tip.style.opacity = 1;
+      const px = X(t) * (r.width / W);
+      tip.style.left = Math.max(0, Math.min(px + 14, r.width - tip.offsetWidth - 4)) + 'px';
+      tip.style.top = '6px';
+    };
+    grab.addEventListener('pointermove', move);
+    grab.addEventListener('pointerdown', move);
+    grab.addEventListener('pointerleave', () => {
+      tip.style.opacity = 0; hair.setAttribute('opacity', 0);
+    });
+
+    plot.innerHTML = ''; plot.appendChild(tip); plot.appendChild(svg);
+  };
+  draw();
+  host._redraw = draw;
+
+  /* table view - the relief channel, never color-only */
+  const det = document.createElement('details');
+  det.appendChild(h('summary','','Table view'));
+  const tb = document.createElement('table');
+  const tr = document.createElement('tr');
+  tr.appendChild(h('th',null,'Time'));
+  series.forEach(s => tr.appendChild(h('th',null,s.label)));
+  tb.appendChild(tr);
+  const n = series[0].points.length, step = Math.max(1, Math.ceil(n/60));
+  for (let i = n-1; i >= 0; i -= step){
+    const row = document.createElement('tr');
+    row.appendChild(h('td',null,fmtTime(series[0].points[i][0])));
+    series.forEach(s => {
+      const p = s.points[i];
+      row.appendChild(h('td',null, p && p[1]!=null ? cfg.yTick(p[1]) : '—'));
+    });
+    tb.appendChild(row);
+  }
+  const tvWrap = h('div','scrollBox');
+  tvWrap.appendChild(tb);
+  det.appendChild(tvWrap);
+  host.appendChild(det);
+}
+
+/* ------------------------------------------------------------- rendering -- */
+function statusOf(loss, th){
+  if (loss == null) return {k:'unknown', icon:'·', label:'No data', color:'--muted'};
+  if (loss >= th.crit) return {k:'crit', icon:'✕', label:'Degraded', color:'--crit'};
+  if (loss >= th.warn) return {k:'warn', icon:'▲', label:'Unstable', color:'--warn'};
+  return {k:'good', icon:'✓', label:'Healthy', color:'--good'};
+}
+
+const TYPE_LABEL = {wifi:'Wi-Fi', cellular:'Cellular', ethernet:'Ethernet', other:'Other'};
+const fmtStamp = ts => {
+  if (!ts) return '—';
+  const d = new Date(ts*1000), n = new Date();
+  const p = x => String(x).padStart(2,'0');
+  const hm = `${p(d.getHours())}:${p(d.getMinutes())}`;
+  return d.toDateString() === n.toDateString()
+    ? hm : `${p(d.getDate())}/${p(d.getMonth()+1)} ${hm}`;
+};
+const relTime = ts => {
+  if (!ts) return 'never';
+  const m = (Date.now()/1000 - ts)/60;
+  if (m < 2) return 'now';
+  if (m < 60) return Math.round(m) + ' min ago';
+  if (m < 48*60) return Math.round(m/60) + ' h ago';
+  return Math.round(m/1440) + ' d ago';
+};
+
+function renderNetworks(){
+  const box = document.getElementById('networks');
+  box.innerHTML = '';
+  const nets = S.networks;
+  document.getElementById('netNote').textContent = nets.length === 1
+    ? 'one network seen so far' : nets.length + ' networks seen';
+
+  const mk = (opts) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'netCard';
+    b.setAttribute('aria-pressed', opts.selected ? 'true' : 'false');
+    const top = h('div','netTop');
+    top.appendChild(h('span','netName', opts.name));
+    (opts.badges||[]).forEach(bd => {
+      const e = h('span','badge ' + (bd.cls||''), bd.text); top.appendChild(e);
+    });
+    b.appendChild(top);
+    const st = h('div','netStats');
+    (opts.stats||[]).forEach(x => {
+      const w = h('span'); w.appendChild(document.createTextNode(x.k + ' '));
+      const v = h('b', null, x.v); w.appendChild(v); st.appendChild(w);
+    });
+    b.appendChild(st);
+    if (opts.foot){
+      const f = h('div','netFoot'); f.appendChild(opts.foot); b.appendChild(f);
+    }
+    b.addEventListener('click', () => go('detail', opts.key));
+    return b;
+  };
+
+  const total = nets.reduce((a,n) => a + n.samples, 0);
+  box.appendChild(mk({
+    key: null, name: 'All networks',
+    selected: S.view === 'detail' && S.net === null,
+    stats: [{k:'samples', v: total}, {k:'networks', v: nets.length}],
+  }));
+
+  nets.forEach(n => {
+    const badges = [{text: TYPE_LABEL[n.type] || n.type}];
+    if (n.current) badges.push({text:'connected', cls:'live'});
+    if (n.vpn_samples > 0) badges.push({text:'VPN seen', cls:'vpn'});
+    const stats = [
+      {k:'loss', v: n.loss_avg != null ? n.loss_avg + '%' : '—'},
+      {k:'latency', v: n.rtt_avg != null ? Math.round(n.rtt_avg) + ' ms' : '—'},
+      {k:'used', v: fmtBytes(n.bytes_in + n.bytes_out)},
+      {k:'seen', v: relTime(n.last_seen)},
+    ];
+    let foot = null;
+    if (n.gw){
+      foot = document.createElement('a');
+      foot.className = 'linkBtn';
+      foot.href = 'http://' + n.gw;
+      foot.target = '_blank'; foot.rel = 'noopener';
+      foot.textContent = 'Open router (' + n.gw + ')';
+      foot.addEventListener('click', ev => ev.stopPropagation());
+    }
+    box.appendChild(mk({key:n.key, name:n.label || n.key,
+                        selected: S.view === 'detail' && S.net === n.key,
+                        badges, stats, foot}));
+  });
+
+  // header router shortcut follows the network in view
+  const cur = nets.find(n => S.net ? n.key === S.net : n.current);
+  const rb = document.getElementById('routerBtn');
+  if (cur && cur.gw){
+    rb.href = 'http://' + cur.gw;
+    rb.textContent = 'Open router';
+    rb.style.display = '';
+  } else rb.style.display = 'none';
+}
+
+function renderHeader(){
+  const st = S.status; if (!st) return;
+  const latest = st.latest;
+  const intl = latest && latest.pings ? latest.pings.intl : null;
+  const stat = statusOf(intl ? intl.loss : null, st.thresholds);
+
+  const pill = document.getElementById('statusPill');
+  pill.innerHTML = '';
+  const d = h('span','dot'); d.style.background = css(stat.color);
+  pill.appendChild(d);
+  pill.appendChild(h('span', null, stat.label));
+  pill.setAttribute('title', stat.label);
+
+  const vpnNow = st.network && st.network.vpn ? ' · VPN active' : '';
+  document.getElementById('subline').textContent = S.view === 'home'
+    ? `Pick a connection to see its detail${vpnNow}`
+    : `Last sample ${latest ? fmtTime(latest.ts) : '—'} · sampling every ` +
+      `${st.sample_interval_sec}s · ${S.samples.length} points${vpnNow}`;
+  const ifn = document.getElementById('ifaceName');
+  if (ifn) ifn.textContent = st.interface;
+}
+
+function renderKpis(){
+  const st = S.status; if (!st) return;
+  const box = document.getElementById('kpis'); box.innerHTML = '';
+  const th = st.thresholds;
+  const latest = st.latest;
+  const pg = k => latest && latest.pings ? latest.pings[k] : null;
+  const intl = pg('intl'), lan = pg('lan');
+  const stat = statusOf(intl ? intl.loss : null, th);
+
+  const hero = h('div','card tile heroCard');
+  hero.appendChild(h('div','label','Packet loss, international'));
+  const hv = h('div','val hero', intl && intl.loss!=null ? intl.loss.toFixed(1)+'%' : '—');
+  hero.appendChild(hv);
+  const hm = h('div','meta');
+  const ic = h('span','statusIcon', stat.icon); ic.style.color = css(stat.color);
+  hm.appendChild(ic); hm.appendChild(document.createTextNode(' ' + stat.label));
+  if (st.hour_means && st.hour_means.intl && st.hour_means.intl.loss != null)
+    hm.appendChild(document.createTextNode(` · ${st.hour_means.intl.loss}% avg past hour`));
+  hero.appendChild(hm);
+  box.appendChild(hero);
+
+  const tile = (label, val, meta) => {
+    const c = h('div','card tile');
+    c.appendChild(h('div','label',label));
+    c.appendChild(h('div','val',val));
+    if (meta) c.appendChild(h('div','meta',meta));
+    box.appendChild(c);
+  };
+  tile('Home network loss', lan && lan.loss!=null ? lan.loss.toFixed(1)+'%' : '—',
+       lan && lan.rtt!=null ? lan.rtt.toFixed(1)+' ms to router' : null);
+  tile('Latency', intl && intl.rtt!=null ? intl.rtt.toFixed(0)+' ms' : '—',
+       intl && intl.jitter!=null ? '±'+intl.jitter.toFixed(1)+' ms jitter' : null);
+
+  const sp = st.last_speed || {};
+  const lbl = {}; (st.speedtests||[]).forEach(x => lbl[x.key] = x.label);
+  tile('Intl throughput',
+       sp.intl ? sp.intl.mbps.toFixed(1)+' Mbit/s' : '—',
+       sp.intl ? 'measured ' + fmtTime(sp.intl.ts) : 'awaiting first test');
+  tile('Local throughput',
+       sp.cache ? sp.cache.mbps.toFixed(1)+' Mbit/s' : '—',
+       'plan ' + st.plan_down_mbps + ' Mbps');
+  // FUP meter
+  const used = st.usage.cycle_in + st.usage.cycle_out;
+  const cap = (st.fup_cap_gb || 0) * 1e9;
+  const pct = cap > 0 ? Math.min(100, used/cap*100) : 0;
+  const fill = document.getElementById('usageFill');
+  fill.style.width = pct.toFixed(1) + '%';
+  fill.style.background = pct >= 90 ? css('--crit') : pct >= 75 ? css('--warn') : css('--seq-450');
+  document.getElementById('usageNote').textContent =
+    pct >= 90 ? '▲ near cap' : pct >= 75 ? '▲ three quarters used' : '';
+  document.getElementById('usageMeta').textContent =
+    `${(used/1e9).toFixed(2)} GB of ${st.fup_cap_gb} GB cap · ${pct.toFixed(1)}% · ` +
+    `cycle began ${new Date(st.cycle_start*1000).toLocaleDateString()} · ` +
+    `today ${fmtBytes(st.usage.today_in)} down, ${fmtBytes(st.usage.today_out)} up`;
+}
+
+function seriesFor(field){
+  const tgts = (S.status && S.status.targets) || [];
+  return tgts.map((t,i) => ({
+    key: t.key, label: t.label, color: SERIES_COLORS[i % 4],
+    points: S.samples.map(r => {
+      const p = r.pings ? r.pings[t.key] : null;
+      return [r.ts, p && p[field] != null ? p[field] : null];
+    })
+  }));
+}
+
+function renderCharts(){
+  lineChart(document.getElementById('c_loss'), {
+    title:'Packet loss by hop', note:'% of probes lost',
+    series: seriesFor('loss'), unit:'%',
+    yTick: v => v.toFixed(1) + '%',
+  });
+  lineChart(document.getElementById('c_rtt'), {
+    title:'Latency by hop', note:'round-trip, ms',
+    series: seriesFor('rtt'), unit:' ms', endLabels:false,
+    yTick: v => v.toFixed(1) + ' ms',
+  });
+
+  const sts = (S.status && S.status.speedtests) || [];
+  lineChart(document.getElementById('c_speed'), {
+    title:'Throughput', note:'periodic measurement, Mbit/s',
+    series: sts.map((x,i) => ({
+      key:x.key, label:x.label, color:SERIES_COLORS[i % 4],
+      points: S.samples.filter(r => r.speed && r.speed[x.key] != null)
+                       .map(r => [r.ts, r.speed[x.key]])
+    })),
+    unit:'',
+    yTick: v => v.toFixed(1) + ' Mbit/s',
+  });
+
+  lineChart(document.getElementById('c_traffic'), {
+    title:'Traffic on your connection', note:'Mbit/s, from interface counters',
+    series: [
+      {key:'in', label:'Download', color:'--s1',
+       points: S.samples.map(r => [r.ts, r.traffic ? r.traffic.in*8/1e6/r.traffic.secs : null])},
+      {key:'out', label:'Upload', color:'--s2',
+       points: S.samples.map(r => [r.ts, r.traffic ? r.traffic.out*8/1e6/r.traffic.secs : null])},
+    ],
+    unit:'', endLabels:false,
+    yTick: v => v.toFixed(2) + ' Mbit/s',
+  });
+}
+
+function renderIncidents(){
+  const box = document.getElementById('incidents'); box.innerHTML = '';
+  const since = Date.now()/1000 - S.hours*3600;
+  const rows = S.incidents.filter(i => (i.end || i.start) >= since)
+                          .sort((a,b) => b.start - a.start);
+  if (!rows.length){
+    box.appendChild(h('div','empty','None in this range. Your connection held steady.'));
+    return;
+  }
+  const wrap = h('div','scrollBox');
+  const t = document.createElement('table');
+  const hr = document.createElement('tr');
+  ['Started','Duration','Peak loss','State'].forEach(x => hr.appendChild(h('th',null,x)));
+  t.appendChild(hr);
+  rows.forEach(i => {
+    const tr = document.createElement('tr');
+    tr.appendChild(h('td',null,fmtTime(i.start)));
+    const mins = i.end ? Math.max(1, Math.round((i.end-i.start)/60)) : null;
+    tr.appendChild(h('td',null, mins ? mins+' min' : 'ongoing'));
+    tr.appendChild(h('td',null, i.peak_loss.toFixed(1)+'%'));
+    const td = h('td');
+    const stat = statusOf(i.peak_loss, S.status.thresholds);
+    const ic = h('span','statusIcon', stat.icon); ic.style.color = css(stat.color);
+    td.appendChild(ic); td.appendChild(document.createTextNode(' ' + stat.label));
+    tr.appendChild(td);
+    t.appendChild(tr);
+  });
+  wrap.appendChild(t);
+  box.appendChild(wrap);
+}
+
+function renderApps(){
+  const box = document.getElementById('apps'); box.innerHTML = '';
+  if (!S.apps.length){
+    box.appendChild(h('div','empty','Collecting — first snapshot within a minute.'));
+    return;
+  }
+  const max = Math.max(...S.apps.map(a => a.total)) || 1;
+  const wrap = h('div','scrollBox');
+  S.apps.forEach(a => {
+    const row = h('div','barRow');
+    const nm = h('div','barName hint', a.label || a.app);
+    nm.title = [a.desc, a.path, a.app !== (a.label||a.app) ? 'process: ' + a.app : '',
+                a.destinations + ' destination' + (a.destinations===1?'':'s')]
+               .filter(Boolean).join('\n');
+    row.appendChild(nm);
+    const track = h('div','barTrack');
+    const fill = h('div','barFill');
+    fill.style.width = Math.max(2, a.total/max*100) + '%';
+    track.appendChild(fill);
+    row.appendChild(track);
+    row.appendChild(h('div','barVal', fmtBytes(a.total)));
+    wrap.appendChild(row);
+  });
+  box.appendChild(wrap);
+}
+
+function renderDests(){
+  const box = document.getElementById('dests'); box.innerHTML = '';
+  document.getElementById('destNote').textContent =
+    S.dests.length ? S.dests.length + ' seen · most recent first' : 'app to destination';
+  if (!S.dests.length){
+    box.appendChild(h('div','empty','Collecting…')); return;
+  }
+  const wrap = h('div','scrollBox');
+  const t = document.createElement('table');
+  const hr = document.createElement('tr');
+  ['When','App','Destination','In','Out'].forEach(x => hr.appendChild(h('th',null,x)));
+  t.appendChild(hr);
+  S.dests.forEach(r => {
+    const tr = document.createElement('tr');
+    const when = h('td',null, fmtStamp(r.last_seen));
+    when.title = r.first_seen ? 'first seen ' + fmtStamp(r.first_seen) : '';
+    tr.appendChild(when);
+    const appCell = h('td','hint', r.app_label || r.app);
+    appCell.title = [r.app_desc, r.app_path,
+                     (r.app_label && r.app_label !== r.app) ? 'process: ' + r.app : '']
+                    .filter(Boolean).join('\n');
+    tr.appendChild(appCell);
+    const dst = h('td','hint', r.host || r.ip);
+    dst.title = (r.host
+        ? 'Resolves to ' + r.host
+        : 'No reverse-DNS record for this address — many CDN servers publish none')
+      + '\nIP ' + r.ip
+      + (r.first_seen ? '\nFirst seen ' + fmtStamp(r.first_seen) : '')
+      + (r.last_seen ? '\nLast seen ' + fmtStamp(r.last_seen) : '');
+    tr.appendChild(dst);
+    tr.appendChild(h('td',null, fmtBytes(r.bytes_in)));
+    tr.appendChild(h('td',null, fmtBytes(r.bytes_out)));
+    t.appendChild(tr);
+  });
+  wrap.appendChild(t);
+  box.appendChild(wrap);
+}
+
+function renderDevices(){
+  const box = document.getElementById('devices'); box.innerHTML = '';
+  const on = S.devices.filter(d => d.online).length;
+  document.getElementById('devNote').textContent =
+    S.devices.length ? on + ' online of ' + S.devices.length + ' seen' : 'who is connected';
+  if (!S.devices.length){
+    box.appendChild(h('div','empty','Scanning — first sweep within five minutes.'));
+    return;
+  }
+  const wrap = h('div','scrollBox');
+  const t = document.createElement('table');
+  const hr = document.createElement('tr');
+  ['Device','Address','Status','Last seen'].forEach(x => hr.appendChild(h('th',null,x)));
+  t.appendChild(hr);
+  S.devices.forEach(d => {
+    const tr = document.createElement('tr');
+    let name = d.name ? d.name.replace(/\.local$/,'') : (d.ip || d.mac);
+    if (d.is_gateway) name += ' (router)';
+    if (d.is_self) name += ' (this Mac)';
+    tr.appendChild(h('td',null,name));
+    tr.appendChild(h('td',null, d.random_mac ? 'private address' : d.mac));
+    const st = h('td');
+    const ic = h('span','statusIcon', d.online ? '✓' : '○');
+    ic.style.color = css(d.online ? '--good' : '--muted');
+    st.appendChild(ic);
+    st.appendChild(document.createTextNode(' ' + (d.online ? 'online' : 'away')));
+    tr.appendChild(st);
+    tr.appendChild(h('td',null, relTime(d.last_seen)));
+    t.appendChild(tr);
+  });
+  wrap.appendChild(t);
+  box.appendChild(wrap);
+}
+
+/* ------------------------------------------------------------------ data -- */
+async function load(){
+  try{
+    const [st, nw] = await Promise.all([
+      fetch('/api/status').then(r => r.json()),
+      fetch('/api/networks').then(r => r.json()),
+    ]);
+    S.status = st; S.networks = nw.networks || [];
+    renderNetworks();
+    renderHeader();
+    applyView();
+    if (S.view === 'home') return;
+
+    const [sm, inc] = await Promise.all([
+      fetch('/api/samples?hours=' + S.hours + (S.net ? '&net=' + encodeURIComponent(S.net) : ''))
+        .then(r => r.json()),
+      fetch('/api/incidents').then(r => r.json()),
+    ]);
+    S.samples = sm.samples || []; S.incidents = inc.incidents || [];
+    renderHeader();
+    renderKpis();
+    if (S.samples.length) renderCharts();
+    else document.getElementById('c_loss').innerHTML =
+      '<div class="empty">Waiting for the first sample…</div>';
+    renderIncidents();
+  } catch(e){
+    document.getElementById('subline').textContent = 'Cannot reach hopwatch: ' + e.message;
+    document.getElementById('subline').className = 'err';
+  }
+  if (S.view !== 'detail') return;
+  try{
+    const [act, dev] = await Promise.all([
+      fetch('/api/activity').then(r => r.json()),
+      fetch('/api/devices').then(r => r.json()),
+    ]);
+    S.apps = act.apps || []; S.dests = act.destinations || [];
+    S.devices = dev.devices || [];
+    renderApps(); renderDests(); renderDevices();
+  } catch(e){ /* best effort */ }
+}
+
+function applyView(){
+  document.getElementById('home').hidden   = S.view !== 'home';
+  document.getElementById('detail').hidden = S.view !== 'detail';
+  if (S.view === 'detail'){
+    const n = S.net ? S.networks.find(x => x.key === S.net) : null;
+    document.getElementById('ctxName').textContent = n ? (n.label || n.key) : 'All networks';
+    const bb = document.getElementById('ctxBadges'); bb.innerHTML = '';
+    if (n){
+      const add = (t,c) => bb.appendChild(h('span','badge ' + (c||''), t));
+      add(TYPE_LABEL[n.type] || n.type);
+      if (n.current) add('connected','live');
+      if (n.vpn_samples > 0) add('VPN seen','vpn');
+    }
+  }
+  const rb = document.getElementById('routerBtn');
+  if (rb) rb.style.display = S.view === 'detail' && rb.href && rb.href !== '#' ? '' : 'none';
+}
+
+function hashFor(){
+  return S.view === 'home' ? '' : (S.net ? '#n=' + encodeURIComponent(S.net) : '#all');
+}
+
+function go(view, net){
+  S.view = view; S.net = net || null;
+  const want = hashFor();
+  if (location.hash !== want) location.hash = want;   // triggers hashchange
+  else route(true);
+}
+
+function route(force){
+  const hsh = decodeURIComponent(location.hash || '');
+  let view = 'home', net = null;
+  if (hsh === '#all'){ view = 'detail'; }
+  else if (hsh.startsWith('#n=')){ view = 'detail'; net = hsh.slice(3); }
+  if (!force && view === S.view && net === S.net) return;
+  S.view = view; S.net = net;
+  applyView();
+  load();
+}
+addEventListener('hashchange', () => route(false));
+document.getElementById('backBtn').addEventListener('click', () => go('home', null));
+
+document.querySelectorAll('.filters button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.filters button')
+      .forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+    S.hours = parseFloat(b.dataset.h);
+    document.querySelectorAll('.grid2 .card').forEach(c => c.style.opacity = .55);
+    load().then(() => document.querySelectorAll('.grid2 .card')
+      .forEach(c => c.style.opacity = 1));
+  });
+});
+
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const dark = cur ? cur === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+  if (S.samples.length) renderCharts();
+  renderKpis(); renderIncidents(); renderTalkers();
+});
+
+document.getElementById('reportBtn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  try{
+    const txt = await fetch('/api/report?hours=' + Math.max(24, S.hours)).then(r => r.text());
+    await navigator.clipboard.writeText(txt);
+    btn.textContent = 'Copied ✓';
+  } catch(err){
+    window.open('/api/report?hours=24', '_blank');
+    btn.textContent = 'Opened report';
+  }
+  setTimeout(() => { btn.textContent = 'Copy ISP report'; }, 2200);
+});
+
+let rt;
+addEventListener('resize', () => {
+  clearTimeout(rt);
+  rt = setTimeout(() => { if (S.samples.length) renderCharts(); }, 160);
+});
+
+route(true);
+setInterval(load, 30000);
+</script>
+</body>
+</html>

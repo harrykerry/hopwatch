@@ -1,0 +1,10 @@
+# Collected measurements and anything identifying your network
+data/
+hopwatch.conf.json
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
